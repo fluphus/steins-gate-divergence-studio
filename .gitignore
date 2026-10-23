@@ -6,3 +6,6 @@ Thumbs.db
 *.raw.mp4
 .venv/
 venv/
+
+# Canonical videos can be generated locally; publish only Custom demos.
+/videos/WorldLine*.mp4

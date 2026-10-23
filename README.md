@@ -2,6 +2,8 @@
 
 > **100% Official Color Grading Match (`43.57 dB` PSNR)** · **100% Intact Relativistic Physics Formulas** · **12-State Native CG Nixie Tube Sprite Kit** · **Interactive HTML5 Canvas Studio + Offline H.264/AAC MP4 CLI Renderer**
 
+**在线工作台：[打开 Divergence Studio](https://fluphus.github.io/steins-gate-divergence-studio/)**
+
 ![Nixie Tube Full Atlas](sprites/nixie_atlas.png)
 
 ![Nixie Tube Emissive Filaments Atlas](sprites/nixie_filaments_atlas.png)
@@ -31,7 +33,7 @@
 ## 📁 仓库目录结构 (Repository Structure)
 
 ```text
-SteinsGate-Divergence-Studio-GitHub/
+steins-gate-divergence-studio/
 ├── index.html                        # 交互式 HTML5 Canvas 世界线变动合成工作台 (支持 GitHub Pages 及本地 file:// 双击直开)
 ├── render_divergence_video.py        # Python 原生辉光管图层提取器 & 任意世界线 H.264+AAC 视频合成器 (v4)
 ├── nixie-atlas-data.js               # 供 index.html 离线加载的 Base64 贴图与遮罩数据包
@@ -49,14 +51,8 @@ SteinsGate-Divergence-Studio-GitHub/
 │   ├── filament_dot.png              # 小数点透明背景纯发光层 (RGBA)
 │   ├── filament_digit_0..9.png       # 数字 0-9 透明背景纯发光层 (RGBA)
 │   └── orig_digits_timeline.json     # 母版视频 210 帧 × 8 支辉光管逐帧数字状态表与锁定帧表
-└── videos/                           # 已渲染完毕的全套世界线变动 MP4 视频库 (H.264 + 原版 AAC 音轨)
-    ├── WorldLine01.mp4               # 30.63841 -> 30.63846 (第2章 2-2:26)
-    ├── WorldLine02.mp4               # 30.63846 -> 30.63851 (第3章 3-2:30)
-    ├── WorldLine03.mp4               # 30.63851 -> 30.63856 (第5章 5:22)
-    ├── WorldLine04.mp4               # 30.63856 -> 30.63861 (第6章 6-2:7)
-    ├── WorldLine05.mp4               # 30.63861 -> 30.63866 (第7章 7:21)
-    ├── WorldLine06.mp4               # 30.63866 -> 30.63841 (第8章 8:63 / 官网原版)
-    ├── Custom-SteinsGate-1.048596.mp4# 0.571024 -> 1.048596 (Steins Gate 世界线跳变演示)
+└── videos/                           # 两段自定义跳变演示 (H.264 + 原版 AAC 音轨)
+    ├── Custom-SteinsGate-1.048596.mp4 # 0.571024 -> 1.048596 (Steins Gate 世界线跳变演示)
     └── Custom-Alpha-0.571024.mp4     # 1.130426 -> 0.571024 (β -> α 世界线跳变演示)
 ```
 
@@ -66,7 +62,7 @@ SteinsGate-Divergence-Studio-GitHub/
 
 ### 1. 直接使用交互式网页工作台 (`index.html`)
 - **本地双击运行**：直接双击打开 `index.html`（无需启动本地服务器，不会触发 `file://` Canvas 跨域安全报错）。
-- **GitHub Pages 在线部署**：将本仓库推送至 GitHub 后，在 `Settings -> Pages` 中选择 `main` 分支根目录，即可在线访问交互式合成器。
+- **在线使用**：访问 [GitHub Pages 工作台](https://fluphus.github.io/steins-gate-divergence-studio/)，无需安装。站点从 `main` 分支根目录自动部署。
 - **支持功能**：
   - 实时输入任意 8 位起始值与目标值、一键切换原作 6 段标准剧情跳变与经典世界线（`1.048596`、`0.571024`、`1.130426`、`0.000000`）；
   - 210 帧逐帧检视（`F000`–`F209`）、关键帧书签跳转、单管实时状态指示条；
@@ -83,6 +79,8 @@ pip install -r requirements.txt
 ```bash
 python render_divergence_video.py --batch-all
 ```
+
+仓库及在线页面仅附带两段 `Custom-*.mp4` 演示。六段 `WorldLine01..06.mp4` 可通过上述命令在本地生成，已加入 Git 忽略规则；工作台仍保留全部六个剧情预设。
 
 **生成任意自定义世界线跳变 MP4 视频（含原版无损 AAC 音效与官方色彩校准）：**
 ```bash
