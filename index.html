@@ -1,0 +1,1055 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STEINS;GATE XR · 世界线变动率原生图层合成工作台 (Divergence Meter Studio v4)</title>
+<style>
+  :root {
+    --bg: #0c0a09;
+    --panel: #161311;
+    --panel-2: #1f1a17;
+    --border: #332922;
+    --border-hi: #6e4427;
+    --text: #ece6df;
+    --muted: #9e9287;
+    --amber: #ff8c24;
+    --amber-hi: #ffc266;
+    --red: #d93829;
+    --green: #4ec978;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(circle at 50% 0%, #24120b 0%, var(--bg) 55%);
+    color: var(--text);
+    font: 14px/1.65 "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  main {
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 28px 24px 80px;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 18px;
+    margin-bottom: 24px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--amber-hi);
+    text-shadow: 0 0 18px rgba(255, 140, 36, 0.35);
+  }
+  .subtitle {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .badge-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    background: rgba(255, 140, 36, 0.12);
+    border: 1px solid rgba(255, 140, 36, 0.35);
+    color: var(--amber-hi);
+    font-family: Consolas, monospace;
+  }
+  .studio-grid {
+    display: grid;
+    grid-template-columns: 1fr 410px;
+    gap: 22px;
+    align-items: start;
+  }
+  @media (max-width: 1100px) {
+    .studio-grid { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  }
+  .canvas-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #050202;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #3a2318;
+  }
+  canvas#stage {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .hud-overlay {
+    position: absolute;
+    top: 12px;
+    left: 14px;
+    right: 14px;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+  }
+  .hud-pill {
+    background: rgba(10, 6, 5, 0.78);
+    border: 1px solid rgba(255, 140, 36, 0.4);
+    color: var(--amber-hi);
+    padding: 3px 9px;
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+  }
+  .tube-strip {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .tube-cell {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 6px 4px;
+    text-align: center;
+    font-family: Consolas, monospace;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .tube-cell.rolling {
+    border-color: var(--amber);
+    background: rgba(255, 140, 36, 0.12);
+  }
+  .tube-cell.locked {
+    border-color: rgba(78, 201, 120, 0.55);
+  }
+  .tube-cell.modified {
+    box-shadow: inset 0 0 8px rgba(255, 140, 36, 0.22);
+  }
+  .tube-idx { font-size: 10px; color: var(--muted); }
+  .tube-val {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--amber-hi);
+    line-height: 1.2;
+    margin: 2px 0;
+    text-shadow: 0 0 10px rgba(255, 140, 36, 0.6);
+  }
+  .tube-state { font-size: 10px; color: var(--muted); }
+  .scrubber-Area {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .scrubber-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  input[type="range"] {
+    flex: 1;
+    accent-color: var(--amber);
+    cursor: pointer;
+  }
+  .btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 10px;
+  }
+  button {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 6px 11px;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  button:hover {
+    border-color: var(--amber);
+    color: var(--amber-hi);
+  }
+  button.primary {
+    background: linear-gradient(180deg, #b85614 0%, #873908 100%);
+    border-color: var(--amber);
+    color: #fff;
+    font-weight: 600;
+  }
+  button.primary:hover {
+    filter: brightness(1.12);
+  }
+  button.active-preset {
+    border-color: var(--amber-hi);
+    background: rgba(255, 140, 36, 0.18);
+    color: var(--amber-hi);
+  }
+  .Bookmark-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 8px;
+  }
+  .Bookmark-row button {
+    font-size: 11px;
+    padding: 3px 7px;
+    font-family: Consolas, monospace;
+  }
+  h2 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    color: var(--amber-hi);
+    font-weight: 600;
+  }
+  h3 {
+    margin: 16px 0 8px;
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .input-pair {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .div-input-box label {
+    display: block;
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .div-input-box input {
+    width: 100%;
+    background: #0c0908;
+    border: 1px solid var(--border-hi);
+    color: var(--amber-hi);
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 7px 10px;
+    border-radius: 5px;
+    text-align: center;
+  }
+  .div-input-box input:focus {
+    outline: none;
+    border-color: var(--amber);
+    box-shadow: 0 0 12px rgba(255, 140, 36, 0.35);
+  }
+  .preset-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .preset-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+    padding: 7px 10px;
+    font-family: Consolas, monospace;
+    font-size: 12px;
+  }
+  .preset-btn span.meta {
+    color: var(--muted);
+    font-family: "Microsoft YaHei", sans-serif;
+    font-size: 11.5px;
+  }
+  .slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .slider-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+  }
+  .slider-item span.lbl { width: 115px; color: var(--muted); }
+  .slider-item span.val { width: 42px; text-align: right; font-family: Consolas, monospace; color: var(--amber-hi); }
+  .cli-box {
+    background: #090706;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 8px 10px;
+    font-family: Consolas, monospace;
+    font-size: 11.5px;
+    color: #d7c9bc;
+    word-break: break-all;
+    margin-top: 8px;
+  }
+  section.gallery-section {
+    margin-top: 34px;
+  }
+  .video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(390px, 1fr));
+    gap: 18px;
+    margin-top: 14px;
+  }
+  .video-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 12px;
+  }
+  .video-card video, .video-card img {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    background: #050202;
+    display: block;
+  }
+  .video-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-family: Consolas, monospace;
+  }
+  .video-card-head strong { color: var(--amber-hi); font-size: 14px; }
+  .video-card-head span { color: var(--muted); font-size: 12px; }
+  .video-card-foot {
+    margin-top: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  a.dl-link {
+    color: var(--amber-hi);
+    text-decoration: none;
+    border: 1px solid rgba(255, 140, 36, 0.4);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11.5px;
+  }
+  a.dl-link:hover { background: rgba(255, 140, 36, 0.15); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>STEINS;GATE XR · 世界线变动率原生图层合成工作台 (v4)</h1>
+      <p class="subtitle">100% 官方原片色彩空间校准 (BT.601↔BT.709 逆矩阵补偿) · 严格避让物理公式安全窗 (y=220..461) · 全分辨率实时归一化卷积合成</p>
+    </div>
+    <div class="badge-row">
+      <span class="badge">Official Color Matched (43.6dB)</span>
+      <span class="badge">100% Intact Physics Formulas</span>
+      <span class="badge">Zero file:// CORS Taint</span>
+      <span class="badge">Native CG Nixie Sprites</span>
+    </div>
+  </header>
+
+  <div class="studio-grid">
+    <!-- Left: Interactive Canvas Stage & Timeline -->
+    <div class="card">
+      <div class="canvas-wrap">
+        <canvas id="stage" width="1280" height="720"></canvas>
+        <div class="hud-overlay">
+          <div class="hud-pill" id="hud-left">FRAME 000 / 209 (0.00s) · STATIC START</div>
+          <div class="hud-pill" id="hud-right">30.63841 → 30.63846</div>
+        </div>
+      </div>
+
+      <!-- 8 Nixie Tube Live Status Strip -->
+      <div class="tube-strip" id="tube-strip"></div>
+
+      <!-- Timeline Scrubber & Frame Controls -->
+      <div class="scrubber-Area">
+        <div class="scrubber-row">
+          <button id="btn-play" class="primary">▶ 播放 / 暂停</button>
+          <button id="btn-prev" title="上一帧 (-1)">◀ -1帧</button>
+          <button id="btn-next" title="下一帧 (+1)">+1帧 ▶</button>
+          <input type="range" id="frame-slider" min="0" max="209" value="0" step="1">
+          <button id="btn-restart">⏮ 重播</button>
+        </div>
+
+        <div class="Bookmark-row">
+          <button data-jump="0">F000 初态静止</button>
+          <button data-jump="31">F031 物理公式浮现</button>
+          <button data-jump="40">F040 全管高速起跳</button>
+          <button data-jump="52">F052 4号管锁死</button>
+          <button data-jump="67">F067 5号管锁死</button>
+          <button data-jump="77">F077 8号管锁死</button>
+          <button data-jump="80">F080 1/2号管锁死</button>
+          <button data-jump="87">F087 6号管锁死(剩7号单滚)</button>
+          <button data-jump="95">F095 7号管终锁完成</button>
+          <button data-jump="150">F150 公式消散终态</button>
+        </div>
+
+        <div class="btn-row" style="justify-content: space-between; margin-top: 12px;">
+          <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+            <label style="font-size:12px; color:var(--muted);"><input type="checkbox" id="chk-loop" checked> 循环播放</label>
+            <label style="font-size:12px; color:var(--muted); margin-left:8px;"><input type="checkbox" id="chk-mute"> 静音</label>
+            <label style="font-size:12px; color:var(--muted); margin-left:8px;"><input type="checkbox" id="chk-diff-view"> 仅高亮图层替换区域</label>
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button id="btn-snap">📷 导出当前帧无损 PNG</button>
+            <button id="btn-record">⏺ 录制当前自定义 WebM 视频</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Custom Divergence Controls & Presets -->
+    <div class="card">
+      <h2>自定义世界线变动率 (8 Tubes)</h2>
+      <div class="input-pair">
+        <div class="div-input-box">
+          <label for="inp-from">起始变动率 (F000–F039)</label>
+          <input type="text" id="inp-from" maxlength="8" value="30.63841" spellcheck="false">
+        </div>
+        <div style="padding-top:18px; color:var(--amber); font-weight:bold; font-size:18px;">→</div>
+        <div class="div-input-box">
+          <label for="inp-to">目标变动率 (F052–F209)</label>
+          <input type="text" id="inp-to" maxlength="8" value="30.63846" spellcheck="false">
+        </div>
+      </div>
+      <div style="font-size:11.5px; color:var(--muted); margin-bottom:10px;">
+        支持输入任意 8 位字符：<code>0-9</code> 数字、<code>.</code> 小数点（可放在任意管位）、或空格（表示未点亮空管）。预设状态与官方原片调色 100% 一致。
+      </div>
+
+      <h3>原作 6 次世界线变动 + 经典世界线预设</h3>
+      <div class="preset-list" id="preset-list">
+        <button class="preset-btn active-preset" data-from="30.63841" data-to="30.63846">
+          <strong>WorldLine01 · 30.63841 → 30.63846</strong>
+          <span class="meta">第2章 2-2:26</span>
+        </button>
+        <button class="preset-btn" data-from="30.63846" data-to="30.63851">
+          <strong>WorldLine02 · 30.63846 → 30.63851</strong>
+          <span class="meta">第3章 3-2:30</span>
+        </button>
+        <button class="preset-btn" data-from="30.63851" data-to="30.63856">
+          <strong>WorldLine03 · 30.63851 → 30.63856</strong>
+          <span class="meta">第5章 5:22</span>
+        </button>
+        <button class="preset-btn" data-from="30.63856" data-to="30.63861">
+          <strong>WorldLine04 · 30.63856 → 30.63861</strong>
+          <span class="meta">第6章 6-2:7</span>
+        </button>
+        <button class="preset-btn" data-from="30.63861" data-to="30.63866">
+          <strong>WorldLine05 · 30.63861 → 30.63866</strong>
+          <span class="meta">第7章 7:21</span>
+        </button>
+        <button class="preset-btn" data-from="30.63866" data-to="30.63841">
+          <strong>WorldLine06 · 30.63866 → 30.63841</strong>
+          <span class="meta">第8章 8:63 (母版原片)</span>
+        </button>
+        <button class="preset-btn" data-from="0.571024" data-to="1.048596">
+          <strong>Steins Gate · 0.571024 → 1.048596</strong>
+          <span class="meta">α → 命运石之门线 (全管自定义演示)</span>
+        </button>
+        <button class="preset-btn" data-from="1.130426" data-to="0.571024">
+          <strong>Alpha Leap · 1.130426 → 0.571024</strong>
+          <span class="meta">β → α 世界线跳变 (1080p 同款数值)</span>
+        </button>
+      </div>
+
+      <h3>辉光光学微调与跳变模式 (默认 1.00x = 官方原片调色)</h3>
+      <div class="slider-group">
+        <div class="slider-item">
+          <span class="lbl">灯丝辉光增益 (Gain)</span>
+          <input type="range" id="sl-gain" min="0.80" max="1.35" step="0.01" value="1.00">
+          <span class="val" id="val-gain">1.00x</span>
+        </div>
+        <div class="slider-item">
+          <span class="lbl">额外光晕叠加 (Bloom)</span>
+          <input type="range" id="sl-bloom" min="0.00" max="0.60" step="0.02" value="0.00">
+          <span class="val" id="val-bloom">+0%</span>
+        </div>
+        <div class="slider-item">
+          <span class="lbl">阴极微闪烁 (Flicker)</span>
+          <input type="range" id="sl-flicker" min="0.00" max="0.15" step="0.01" value="0.00">
+          <span class="val" id="val-flicker">0%</span>
+        </div>
+        <div class="slider-item">
+          <span class="lbl">锁定序列模式</span>
+          <select id="sel-lock-mode" style="flex:1; background:#0c0908; color:var(--text); border:1px solid var(--border); padding:4px 6px; border-radius:4px;">
+            <option value="canonical">原片错位锁定 (F052→67→77→78→80→87→95)</option>
+            <option value="left2right">从左至右依次锁定 (F050..F095)</option>
+            <option value="right2left">从右至左依次锁定 (F050..F095)</option>
+            <option value="simultaneous">全管于 F095 同时锁死</option>
+          </select>
+        </div>
+      </div>
+
+      <h3>离线生成任意自定义 H.264+AAC MP4 命令</h3>
+      <div class="cli-box" id="cli-cmd">
+        python render_divergence_video.py --from-val "30.63841" --to-val "30.63846" --out "Custom.mp4"
+      </div>
+    </div>
+  </div>
+
+  <!-- Pre-rendered Canonical MP4 Gallery -->
+  <section class="gallery-section">
+    <h2>已生成的全套世界线变动 MP4 视频库（官方色彩校准 + 100% 完整物理公式 + 原版无损 AAC 音轨）</h2>
+    <p class="subtitle">以下视频已通过 BT.601↔BT.709 色彩空间逆矩阵精确校准（PSNR 43.6 dB），与官网母版调色完全一致，且严格避开上下手写相对论公式区域。</p>
+    <div class="video-grid">
+      <div class="video-card">
+        <div class="video-card-head"><strong>WorldLine01.mp4</strong><span>30.63841 → 30.63846</span></div>
+        <video controls playsinline preload="metadata" src="videos/WorldLine01.mp4"></video>
+        <div class="video-card-foot"><span>第2章 概念提起のアルケミー② (2-2:26)</span><a class="dl-link" href="videos/WorldLine01.mp4" download>下载 MP4</a></div>
+      </div>
+      <div class="video-card">
+        <div class="video-card-head"><strong>WorldLine02.mp4</strong><span>30.63846 → 30.63851</span></div>
+        <video controls playsinline preload="metadata" src="videos/WorldLine02.mp4"></video>
+        <div class="video-card-foot"><span>第3章 自己言及のダイナミクス② (3-2:30)</span><a class="dl-link" href="videos/WorldLine02.mp4" download>下载 MP4</a></div>
+      </div>
+      <div class="video-card">
+        <div class="video-card-head"><strong>WorldLine03.mp4</strong><span>30.63851 → 30.63856</span></div>
+        <video controls playsinline preload="metadata" src="videos/WorldLine03.mp4"></video>
+        <div class="video-card-foot"><span>第5章 論理空隙のパラダイム (5:22)</span><a class="dl-link" href="videos/WorldLine03.mp4" download>下载 MP4</a></div>
+      </div>
+      <div class="video-card">
+        <div class="video-card-head"><strong>WorldLine04.mp4</strong><span>30.63856 → 30.63861</span></div>
+        <video controls playsinline preload="metadata" src="videos/WorldLine04.mp4"></video>
+        <div class="video-card-foot"><span>第6章 観測者のノスタルジア② (6-2:7)</span><a class="dl-link" href="videos/WorldLine04.mp4" download>下载 MP4</a></div>
+      </div>
+      <div class="video-card">
+        <div class="video-card-head"><strong>WorldLine05.mp4</strong><span>30.63861 → 30.63866</span></div>
+        <video controls playsinline preload="metadata" src="videos/WorldLine05.mp4"></video>
+        <div class="video-card-foot"><span>第7章 境界線上のホリゾント (7:21)</span><a class="dl-link" href="videos/WorldLine05.mp4" download>下载 MP4</a></div>
+      </div>
+      <div class="video-card">
+        <div class="video-card-head"><strong>WorldLine06.mp4 (官方原片)</strong><span>30.63866 → 30.63841</span></div>
+        <video controls playsinline preload="metadata" src="videos/WorldLine06.mp4"></video>
+        <div class="video-card-foot"><span>第8章 最终回归 (8:63 / open_video02)</span><a class="dl-link" href="videos/WorldLine06.mp4" download>下载 MP4</a></div>
+      </div>
+      <div class="video-card">
+        <div class="video-card-head"><strong>Custom: Steins Gate</strong><span>0.571024 → 1.048596</span></div>
+        <video controls playsinline preload="metadata" src="videos/Custom-SteinsGate-1.048596.mp4"></video>
+        <div class="video-card-foot"><span>全管位自定义跳变演示 (小数点移至2号管)</span><a class="dl-link" href="videos/Custom-SteinsGate-1.048596.mp4" download>下载 MP4</a></div>
+      </div>
+      <div class="video-card">
+        <div class="video-card-head"><strong>Custom: Beta → Alpha</strong><span>1.130426 → 0.571024</span></div>
+        <video controls playsinline preload="metadata" src="videos/Custom-Alpha-0.571024.mp4"></video>
+        <div class="video-card-foot"><span>全管位自定义跳变演示 (β世界线跳变至α世界线)</span><a class="dl-link" href="videos/Custom-Alpha-0.571024.mp4" download>下载 MP4</a></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Extracted Native Sprite Kit Preview -->
+  <section class="gallery-section">
+    <h2>从母版视频无损剥离的 12 态原生辉光管图层包 (v4 零公式残留 + 官方暖橙色温)</h2>
+    <p class="subtitle">保存在 <code>sprites/</code>，包含未点亮空管 <code>empty</code>、小数点 <code>.</code> 与 <code>0–9</code> 完整管体图及官方暖橙色调透明发光层。</p>
+    <div class="card" style="margin-top:12px;">
+      <div style="font-size:12px; color:var(--amber-hi); margin-bottom:6px; font-family:Consolas,monospace;">
+        1. 完整单管图集 nixie_atlas.png (1644×420 · 管顶玻璃帽与管底金属座 100% 零公式残留)
+      </div>
+      <img src="sprites/nixie_atlas.png" alt="Nixie Atlas" style="width:100%; border-radius:4px; border:1px solid var(--border);">
+      <div style="font-size:12px; color:var(--amber-hi); margin:14px 0 6px; font-family:Consolas,monospace;">
+        2. 官方暖橙色调纯发光阴极灯丝图集 nixie_filaments_atlas.png (1507×420 · 消除红通道饱和偏绿，还原纯正暖琥珀辉光)
+      </div>
+      <img src="sprites/nixie_filaments_atlas.png" alt="Nixie Filaments Atlas" style="width:100%; border-radius:4px; border:1px solid var(--border);">
+    </div>
+  </section>
+</main>
+
+<video id="master-video" preload="auto" playsinline style="display:none;"></video>
+<script src="nixie-atlas-data.js"></script>
+<script src="master-video-blob.js"></script>
+<script>
+(() => {
+  'use strict';
+  const DATA = window.NIXIE_STUDIO_DATA;
+  if (!DATA) {
+    alert('未加载到 nixie-atlas-data.js，请先运行 render_divergence_video.py --batch-all');
+    return;
+  }
+
+  const FPS = 30000 / 1001;
+  const TOTAL_FRAMES = 210;
+  const stage = document.getElementById('stage');
+  const ctx = stage.getContext('2d', { willReadFrequently: true });
+  const video = document.getElementById('master-video');
+
+  // Load master video from in-memory Blob URL so Canvas getImageData & toDataURL & captureStream
+  // never suffer from file:// CORS taint!
+  if (window.MASTER_VIDEO_B64) {
+    const binStr = atob(window.MASTER_VIDEO_B64);
+    const len = binStr.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = binStr.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'video/mp4' });
+    video.src = URL.createObjectURL(blob);
+  } else {
+    video.src = 'assets/master/official-site-opening.mp4';
+  }
+
+  const hudLeft = document.getElementById('hud-left');
+  const hudRight = document.getElementById('hud-right');
+  const tubeStrip = document.getElementById('tube-strip');
+  const btnPlay = document.getElementById('btn-play');
+  const btnPrev = document.getElementById('btn-prev');
+  const btnNext = document.getElementById('btn-next');
+  const btnRestart = document.getElementById('btn-restart');
+  const slider = document.getElementById('frame-slider');
+  const chkLoop = document.getElementById('chk-loop');
+  const chkMute = document.getElementById('chk-mute');
+  const chkDiffView = document.getElementById('chk-diff-view');
+  const inpFrom = document.getElementById('inp-from');
+  const inpTo = document.getElementById('inp-to');
+  const slGain = document.getElementById('sl-gain');
+  const valGain = document.getElementById('val-gain');
+  const slBloom = document.getElementById('sl-bloom');
+  const valBloom = document.getElementById('val-bloom');
+  const slFlicker = document.getElementById('sl-flicker');
+  const valFlicker = document.getElementById('val-flicker');
+  const selLockMode = document.getElementById('sel-lock-mode');
+  const cliCmd = document.getElementById('cli-cmd');
+
+  const tubeCells = [];
+  for (let t = 0; t < 8; t++) {
+    const cell = document.createElement('div');
+    cell.className = 'tube-cell';
+    cell.innerHTML = `<div class="tube-idx">TUBE ${t + 1}</div><div class="tube-val">-</div><div class="tube-state">锁定 F0${DATA.lockFrames[t]}</div>`;
+    tubeStrip.appendChild(cell);
+    tubeCells.push(cell);
+  }
+
+  const W = DATA.tubeW; // 137
+  const H = DATA.tubeH; // 420
+  const spritePixels = {};
+  const coreAlphaPixels = {};
+  const winMaskPixels = new Float32Array(H * W);
+  const filamentCanvases = {};
+  let assetsReady = false;
+
+  // Pre-allocated buffers for fast full-resolution (137x420) separable normalized convolution
+  const numBuf = new Float32Array(H * W * 3);
+  const denBuf = new Float32Array(H * W);
+  const tmpNum = new Float32Array(H * W * 3);
+  const tmpDen = new Float32Array(H * W);
+
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  Promise.all([loadImage(DATA.atlasDataUrl), loadImage(DATA.masksDataUrl)]).then(([atlasImg, masksImg]) => {
+    const tmpC = document.createElement('canvas');
+    tmpC.width = atlasImg.width;
+    tmpC.height = H;
+    const tmpCtx = tmpC.getContext('2d');
+
+    tmpCtx.drawImage(atlasImg, 0, 0);
+    const atlasData = tmpCtx.getImageData(0, 0, atlasImg.width, H).data;
+
+    tmpCtx.clearRect(0, 0, tmpC.width, H);
+    tmpCtx.drawImage(masksImg, 0, 0);
+    const masksData = tmpCtx.getImageData(0, 0, masksImg.width, H).data;
+
+    DATA.keys.forEach((k, idx) => {
+      const sp = new Float32Array(H * W * 3);
+      const ca = new Float32Array(H * W);
+      const xOff = idx * W;
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const srcIdx = (y * atlasImg.width + (xOff + x)) * 4;
+          const dstIdx = (y * W + x) * 3;
+          sp[dstIdx] = atlasData[srcIdx];
+          sp[dstIdx + 1] = atlasData[srcIdx + 1];
+          sp[dstIdx + 2] = atlasData[srcIdx + 2];
+          ca[y * W + x] = masksData[srcIdx] / 255.0;
+          if (idx === 0) {
+            winMaskPixels[y * W + x] = masksData[srcIdx + 1] / 255.0;
+          }
+        }
+      }
+      spritePixels[k] = sp;
+      coreAlphaPixels[k] = ca;
+    });
+
+    const emptySp = spritePixels['empty'];
+    DATA.keys.forEach(k => {
+      const fc = document.createElement('canvas');
+      fc.width = W;
+      fc.height = H;
+      const fctx = fc.getContext('2d');
+      const fimg = fctx.createImageData(W, H);
+      const sp = spritePixels[k];
+      for (let i = 0; i < H * W; i++) {
+        const wm = winMaskPixels[i];
+        const dg = Math.max(0, sp[i * 3 + 1] - emptySp[i * 3 + 1]);
+        const dr = Math.max(0, sp[i * 3] - emptySp[i * 3]);
+        const a = Math.pow(Math.min(1, Math.max(0, (Math.max(dg, dr * 0.65) - 5) / 145)), 0.82) * wm;
+        fimg.data[i * 4] = sp[i * 3] * a;
+        fimg.data[i * 4 + 1] = sp[i * 3 + 1] * a;
+        fimg.data[i * 4 + 2] = sp[i * 3 + 2] * a;
+        fimg.data[i * 4 + 3] = 255;
+      }
+      fctx.putImageData(fimg, 0, 0);
+      filamentCanvases[k] = fc;
+    });
+
+    assetsReady = true;
+    renderCurrentFrame();
+  });
+
+  function getLockFrames() {
+    const mode = selLockMode.value;
+    if (mode === 'left2right') return [52, 58, 64, 70, 76, 82, 88, 95];
+    if (mode === 'right2left') return [95, 88, 82, 76, 70, 64, 58, 52];
+    if (mode === 'simultaneous') return [95, 95, 95, 95, 95, 95, 95, 95];
+    return DATA.lockFrames;
+  }
+
+  function normalizeChar(ch) {
+    if (!ch || ch === ' ' || ch === '_') return 'empty';
+    if (ch === '.' || (ch >= '0' && ch <= '9')) return ch;
+    return '0';
+  }
+
+  function getTargetDigit(frameIdx, tubeIdx, startStr, targetStr, lockFrames) {
+    const sCh = normalizeChar(startStr[tubeIdx]);
+    const eCh = normalizeChar(targetStr[tubeIdx]);
+    const lockF = lockFrames[tubeIdx];
+    if (frameIdx < 40) return sCh;
+    if (frameIdx >= lockF) return eCh;
+    if (sCh === '.' && eCh === '.') return '.';
+    if (sCh === 'empty' && eCh === 'empty') return 'empty';
+    const origCh = DATA.origDigits[frameIdx][tubeIdx];
+    return origCh === '.' ? String((frameIdx + 2) % 10) : origCh;
+  }
+
+  // Exact full-resolution (137x420) normalized-convolution tube compositor matching Python v4 CLI
+  function renderTubeFullRes(x1, dOld, dNew, totalGain) {
+    const patchImg = ctx.getImageData(x1, DATA.tubeY1, W, H);
+    const pData = patchImg.data;
+    const spOld = spritePixels[dOld] || spritePixels['empty'];
+    const spNewRaw = spritePixels[dNew] || spritePixels['empty'];
+    const spEmpty = spritePixels['empty'];
+    const caOld = coreAlphaPixels[dOld] || coreAlphaPixels['empty'];
+    const caNew = coreAlphaPixels[dNew] || coreAlphaPixels['empty'];
+
+    const yMin = 47, yMax = 297;
+    // 1. Prepare weighted delta_raw * w inside active window [yMin..yMax]
+    for (let y = yMin; y < yMax; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        const i3 = i * 3;
+        const i4 = i * 4;
+        const w = 1.0 - caOld[i] * 0.96;
+        numBuf[i3] = (pData[i4] - spOld[i3]) * w;
+        numBuf[i3 + 1] = (pData[i4 + 1] - spOld[i3 + 1]) * w;
+        numBuf[i3 + 2] = (pData[i4 + 2] - spOld[i3 + 2]) * w;
+        denBuf[i] = w;
+      }
+    }
+
+    // 2. Fast separable 9x9 box-kernel approximation of normalized convolution across 3px wire core
+    const R = 4;
+    for (let y = yMin; y < yMax; y++) {
+      const rowOff = y * W;
+      for (let x = 0; x < W; x++) {
+        const x0 = Math.max(0, x - R), x1b = Math.min(W - 1, x + R);
+        let sr = 0, sg = 0, sb = 0, sd = 0;
+        for (let xx = x0; xx <= x1b; xx++) {
+          const idx = rowOff + xx;
+          const idx3 = idx * 3;
+          sr += numBuf[idx3];
+          sg += numBuf[idx3 + 1];
+          sb += numBuf[idx3 + 2];
+          sd += denBuf[idx];
+        }
+        const dst = rowOff + x;
+        const dst3 = dst * 3;
+        tmpNum[dst3] = sr;
+        tmpNum[dst3 + 1] = sg;
+        tmpNum[dst3 + 2] = sb;
+        tmpDen[dst] = sd;
+      }
+    }
+
+    for (let y = yMin; y < yMax; y++) {
+      const y0 = Math.max(yMin, y - R), y1b = Math.min(yMax - 1, y + R);
+      const rowOff = y * W;
+      for (let x = 0; x < W; x++) {
+        const i = rowOff + x;
+        const wm = winMaskPixels[i];
+        if (wm <= 0.0005) continue;
+
+        let sr = 0, sg = 0, sb = 0, sd = 1e-5;
+        for (let yy = y0; yy <= y1b; yy++) {
+          const idx = yy * W + x;
+          const idx3 = idx * 3;
+          sr += tmpNum[idx3];
+          sg += tmpNum[idx3 + 1];
+          sb += tmpNum[idx3 + 2];
+          sd += tmpDen[idx];
+        }
+
+        const i3 = i * 3;
+        const i4 = i * 4;
+        const co = caOld[i];
+        const cn = caNew[i];
+
+        const rawR = pData[i4] - spOld[i3];
+        const rawG = pData[i4 + 1] - spOld[i3 + 1];
+        const rawB = pData[i4 + 2] - spOld[i3 + 2];
+
+        const envR = (rawR * (1.0 - co) + (sr / sd) * co) * (1.0 - cn * 0.85);
+        const envG = (rawG * (1.0 - co) + (sg / sd) * co) * (1.0 - cn * 0.85);
+        const envB = (rawB * (1.0 - co) + (sb / sd) * co) * (1.0 - cn * 0.85);
+
+        const newR = spEmpty[i3] + (spNewRaw[i3] - spEmpty[i3]) * totalGain + envR;
+        const newG = spEmpty[i3 + 1] + (spNewRaw[i3 + 1] - spEmpty[i3 + 1]) * totalGain + envG;
+        const newB = spEmpty[i3 + 2] + (spNewRaw[i3 + 2] - spEmpty[i3 + 2]) * totalGain + envB;
+
+        pData[i4] = Math.min(255, Math.max(0, pData[i4] * (1.0 - wm) + newR * wm));
+        pData[i4 + 1] = Math.min(255, Math.max(0, pData[i4 + 1] * (1.0 - wm) + newG * wm));
+        pData[i4 + 2] = Math.min(255, Math.max(0, pData[i4 + 2] * (1.0 - wm) + newB * wm));
+      }
+    }
+
+    ctx.putImageData(patchImg, x1, DATA.tubeY1);
+  }
+
+  function getCurrentFrameIndex() {
+    const f = Math.round(video.currentTime * FPS);
+    return Math.min(TOTAL_FRAMES - 1, Math.max(0, f));
+  }
+
+  function renderFrame(frameIdx) {
+    if (!assetsReady) return;
+    const startStr = (inpFrom.value + '        ').slice(0, 8);
+    const targetStr = (inpTo.value + '        ').slice(0, 8);
+    const lockFrames = getLockFrames();
+    const userGain = parseFloat(slGain.value) || 1.0;
+    const bloomAmt = parseFloat(slBloom.value) || 0.0;
+    const flickerAmt = parseFloat(slFlicker.value) || 0.0;
+    const diffView = chkDiffView.checked;
+
+    ctx.drawImage(video, 0, 0, 1280, 720);
+
+    const baseFrameGain = DATA.frameGains[frameIdx] || 1.0;
+    const curDigits = [];
+
+    for (let t = 0; t < 8; t++) {
+      const dOld = DATA.origDigits[frameIdx][t];
+      const dNew = getTargetDigit(frameIdx, t, startStr, targetStr, lockFrames);
+      curDigits.push(dNew === 'empty' ? ' ' : dNew);
+
+      const pseudoRand = Math.sin(frameIdx * 12.9898 + t * 78.233) * 43758.5453;
+      const flk = 1.0 + ((pseudoRand - Math.floor(pseudoRand)) - 0.5) * 2.0 * flickerAmt;
+      const totalGain = baseFrameGain * userGain * flk;
+
+      const x1 = DATA.tubeX0 + t * W;
+      const needReplace = (dNew !== dOld) || Math.abs(userGain - 1.0) > 0.005 || flickerAmt > 0.001;
+
+      if (needReplace) {
+        renderTubeFullRes(x1, dOld, dNew, totalGain);
+      }
+
+      if (diffView && dNew !== dOld) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 160, 40, 0.85)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x1 + 10, DATA.tubeY1 + DATA.winY1, W - 20, DATA.winY2 - DATA.winY1);
+        ctx.restore();
+      }
+
+      if (bloomAmt > 0.005 && dNew !== 'empty' && filamentCanvases[dNew]) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = bloomAmt;
+        ctx.filter = 'blur(6px)';
+        ctx.drawImage(filamentCanvases[dNew], x1, DATA.tubeY1);
+        ctx.restore();
+      }
+
+      const cell = tubeCells[t];
+      const lockF = lockFrames[t];
+      const isRolling = frameIdx >= 40 && frameIdx < lockF && !(startStr[t] === '.' && targetStr[t] === '.');
+      const isLocked = frameIdx >= lockF;
+      cell.className = 'tube-cell' + (isRolling ? ' rolling' : (isLocked ? ' locked' : '')) + (dNew !== dOld ? ' modified' : '');
+      cell.children[1].textContent = dNew === 'empty' ? '␣' : dNew;
+      cell.children[2].textContent = frameIdx < 40
+        ? '初态静止'
+        : (isRolling ? `跳变中 (锁@F${String(lockF).padStart(3, '0')})` : `已锁 @F${String(lockF).padStart(3, '0')}`);
+    }
+
+    slider.value = frameIdx;
+    const sec = (frameIdx / FPS).toFixed(2);
+    let phaseText = 'STATIC START (初态静止)';
+    if (frameIdx >= 31 && frameIdx < 40) phaseText = 'FORMULA REVEAL (公式浮现)';
+    else if (frameIdx >= 40 && frameIdx < 52) phaseText = 'ALL TUBES ROLLING (全管同步起跳)';
+    else if (frameIdx >= 52 && frameIdx < 95) phaseText = 'STAGGERED LOCKING (错位依次锁定)';
+    else if (frameIdx >= 95) phaseText = 'FINAL LOCKED (世界线变动率确定)';
+
+    hudLeft.textContent = `FRAME ${String(frameIdx).padStart(3, '0')} / 209 (${sec}s) · ${phaseText}`;
+    hudRight.textContent = `${startStr.trim()} → ${targetStr.trim()} [当前: ${curDigits.join('')}]`;
+  }
+
+  function renderCurrentFrame() {
+    renderFrame(getCurrentFrameIndex());
+  }
+
+  function tick() {
+    if (!video.paused && !video.ended) {
+      renderCurrentFrame();
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  video.addEventListener('loadeddata', () => {
+    video.currentTime = 0;
+    renderCurrentFrame();
+  });
+  video.addEventListener('seeked', renderCurrentFrame);
+  video.addEventListener('ended', () => {
+    if (chkLoop.checked) {
+      video.currentTime = 0;
+      video.play().catch(() => {});
+    }
+  });
+
+  btnPlay.addEventListener('click', () => {
+    if (video.paused || video.ended) {
+      if (video.ended) video.currentTime = 0;
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  });
+
+  function stepFrame(delta) {
+    video.pause();
+    const nextF = Math.min(TOTAL_FRAMES - 1, Math.max(0, getCurrentFrameIndex() + delta));
+    video.currentTime = (nextF + 0.1) / FPS;
+  }
+  btnPrev.addEventListener('click', () => stepFrame(-1));
+  btnNext.addEventListener('click', () => stepFrame(1));
+  btnRestart.addEventListener('click', () => {
+    video.currentTime = 0;
+    video.play().catch(() => {});
+  });
+
+  slider.addEventListener('input', () => {
+    video.pause();
+    const f = parseInt(slider.value, 10) || 0;
+    video.currentTime = (f + 0.1) / FPS;
+  });
+
+  document.querySelectorAll('[data-jump]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      video.pause();
+      const f = parseInt(btn.getAttribute('data-jump'), 10) || 0;
+      video.currentTime = (f + 0.1) / FPS;
+    });
+  });
+
+  chkMute.addEventListener('change', () => {
+    video.muted = chkMute.checked;
+  });
+
+  chkDiffView.addEventListener('change', renderCurrentFrame);
+  selLockMode.addEventListener('change', renderCurrentFrame);
+
+  function updateCliCommand() {
+    const s = (inpFrom.value + '        ').slice(0, 8);
+    const e = (inpTo.value + '        ').slice(0, 8);
+    cliCmd.textContent = `python render_divergence_video.py --from-val "${s}" --to-val "${e}" --out "Custom_${e.trim()}.mp4"`;
+    renderCurrentFrame();
+  }
+  inpFrom.addEventListener('input', updateCliCommand);
+  inpTo.addEventListener('input', updateCliCommand);
+
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active-preset'));
+      btn.classList.add('active-preset');
+      inpFrom.value = btn.getAttribute('data-from');
+      inpTo.value = btn.getAttribute('data-to');
+      updateCliCommand();
+      video.currentTime = 0;
+      video.play().catch(() => {});
+    });
+  });
+
+  slGain.addEventListener('input', () => {
+    valGain.textContent = `${parseFloat(slGain.value).toFixed(2)}x`;
+    renderCurrentFrame();
+  });
+  slBloom.addEventListener('input', () => {
+    valBloom.textContent = `+${Math.round(parseFloat(slBloom.value) * 100)}%`;
+    renderCurrentFrame();
+  });
+  slFlicker.addEventListener('input', () => {
+    valFlicker.textContent = `${Math.round(parseFloat(slFlicker.value) * 100)}%`;
+    renderCurrentFrame();
+  });
+
+  document.getElementById('btn-snap').addEventListener('click', () => {
+    const url = stage.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Divergence_F${String(getCurrentFrameIndex()).padStart(3, '0')}_${inpTo.value.trim()}.png`;
+    a.click();
+  });
+
+  const btnRecord = document.getElementById('btn-record');
+  let recorder = null;
+  btnRecord.addEventListener('click', () => {
+    if (recorder && recorder.state === 'recording') {
+      recorder.stop();
+      return;
+    }
+    const stream = stage.captureStream(30);
+    const chunks = [];
+    recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.onstop = () => {
+      btnRecord.textContent = '⏺ 录制当前自定义 WebM 视频';
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `WorldLine_${inpFrom.value.trim()}_to_${inpTo.value.trim()}.webm`;
+      a.click();
+    };
+    chkLoop.checked = false;
+    video.currentTime = 0;
+    recorder.start();
+    btnRecord.textContent = '⏹ 正在录制... (播完自动保存)';
+    video.play();
+    video.addEventListener('ended', function stopRec() {
+      video.removeEventListener('ended', stopRec);
+      if (recorder && recorder.state === 'recording') recorder.stop();
+    });
+  });
+})();
+</script>
+</body>
+</html>
