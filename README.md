@@ -1,4 +1,4 @@
-# STEINS;GATE XR — WorldLine Divergence Meter Native CG Layer Extractor & Synthesizer (v4)
+# STEINS;GATE AR — WorldLine Divergence Meter Native CG Layer Extractor & Synthesizer (v4)
 
 > **100% Official Color Grading Match (`43.57 dB` PSNR)** · **100% Intact Relativistic Physics Formulas** · **12-State Native CG Nixie Tube Sprite Kit** · **Interactive HTML5 Canvas Studio + Offline H.264/AAC MP4 CLI Renderer**
 
@@ -39,6 +39,8 @@ steins-gate-divergence-studio/
 ├── nixie-atlas-data.js               # 供 index.html 离线加载的 Base64 贴图与遮罩数据包
 ├── master-video-blob.js              # 供 index.html 零跨域污染 (Zero CORS Taint) 加载的母版视频字节流
 ├── requirements.txt                  # Python 依赖声明 (numpy, opencv-python)
+├── mp4-export.js                     # 浏览器逐帧合成 H.264 MP4，并无损复用原片 AAC 音轨
+├── vendor/                           # 本地打包的 Mediabunny 1.62.1 与许可，无需 CDN
 ├── assets/
 │   └── master/
 │       └── official-site-opening.mp4 # 官网原始母版视频 (30.63866 -> 30.63841, 1280x720, 29.97fps, 210帧)
@@ -64,9 +66,13 @@ steins-gate-divergence-studio/
 - **本地双击运行**：直接双击打开 `index.html`（无需启动本地服务器，不会触发 `file://` Canvas 跨域安全报错）。
 - **在线使用**：访问 [GitHub Pages 工作台](https://fluphus.github.io/steins-gate-divergence-studio/)，无需安装。站点从 `main` 分支根目录自动部署。
 - **支持功能**：
-  - 实时输入任意 8 位起始值与目标值、一键切换原作 6 段标准剧情跳变与经典世界线（`1.048596`、`0.571024`、`1.130426`、`0.000000`）；
+  - 实时输入任意 8 位起始值与目标值，保留 Steins Gate（`0.571024 → 1.048596`）和 Alpha Leap（`1.130426 → 0.571024`）两个经典预设；
   - 210 帧逐帧检视（`F000`–`F209`）、关键帧书签跳转、单管实时状态指示条；
-  - 实时导出当前帧无损 `1280×720` PNG 快照，或实时录制 WebM 视频。
+  - 导出当前帧无损 `1280×720` PNG、逐帧导出自定义 MP4，或实时录制 WebM 视频。
+
+**直接导出 MP4**：调整起止数值、辉光、光晕、闪烁和锁定模式，点击「导出 MP4（含原声）」。浏览器逐帧合成全部 210 帧，以 H.264 编码为 `1280×720`、`30000/1001 fps` 的视频，并复用母版 AAC 音轨。导出有进度显示，可取消；完成后自动下载，也可点击结果链接重新下载。静音开关仅影响预览，MP4 始终包含原片音轨。
+
+MP4 导出使用浏览器 WebCodecs；请使用支持 H.264 编解码的新版 Chrome 或 Edge。组件已随仓库本地打包，在线 Pages 和本地直接打开均可使用，无需上传视频或加载 CDN。不支持时会显示原因，仍可使用 Python CLI。浏览器和 Python 使用不同编码器，README 中的 `43.57 dB` 标定结果仅指 Python CLI。
 
 ### 2. 使用 Python CLI 批量或自定义生成 MP4 视频
 
@@ -80,7 +86,7 @@ pip install -r requirements.txt
 python render_divergence_video.py --batch-all
 ```
 
-仓库及在线页面仅附带两段 `Custom-*.mp4` 演示。六段 `WorldLine01..06.mp4` 可通过上述命令在本地生成，已加入 Git 忽略规则；工作台仍保留全部六个剧情预设。
+仓库及在线页面仅附带两段 `Custom-*.mp4` 演示和对应的两个预设。六段 `WorldLine01..06.mp4` 仍可通过上述命令在本地生成，已加入 Git 忽略规则。
 
 **生成任意自定义世界线跳变 MP4 视频（含原版无损 AAC 音效与官方色彩校准）：**
 ```bash

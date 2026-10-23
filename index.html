@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>STEINS;GATE XR · 世界线变动率原生图层合成工作台 (Divergence Meter Studio v4)</title>
+<title>STEINS;GATE AR · 世界线变动率原生图层合成工作台 (Divergence Meter Studio v4)</title>
 <style>
   :root {
     --bg: #0c0a09;
@@ -356,7 +356,7 @@
 <main>
   <header>
     <div>
-      <h1>STEINS;GATE XR · 世界线变动率原生图层合成工作台 (v4)</h1>
+      <h1>STEINS;GATE AR · 世界线变动率原生图层合成工作台 (v4)</h1>
       <p class="subtitle">100% 官方原片色彩空间校准 (BT.601↔BT.709 逆矩阵补偿) · 严格避让物理公式安全窗 (y=220..461) · 全分辨率实时归一化卷积合成</p>
     </div>
     <div class="badge-row">
@@ -374,7 +374,7 @@
         <canvas id="stage" width="1280" height="720"></canvas>
         <div class="hud-overlay">
           <div class="hud-pill" id="hud-left">FRAME 000 / 209 (0.00s) · STATIC START</div>
-          <div class="hud-pill" id="hud-right">30.63841 → 30.63846</div>
+          <div class="hud-pill" id="hud-right">0.571024 → 1.048596</div>
         </div>
       </div>
 
@@ -412,8 +412,15 @@
           </div>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
             <button id="btn-snap">📷 导出当前帧无损 PNG</button>
-            <button id="btn-record">⏺ 录制当前自定义 WebM 视频</button>
+            <button id="btn-export-mp4" class="primary">导出 MP4（含原声）</button>
+            <button id="btn-record">⏺ 录制 WebM</button>
           </div>
+        </div>
+        <p class="subtitle" style="margin-top:8px;">MP4：1280×720 · 29.97 fps · 当前自定义设置 + 原片音轨。静音仅影响预览。</p>
+        <div id="mp4-export-panel" hidden style="margin-top:10px;">
+          <progress id="mp4-export-progress" max="210" value="0" style="width:100%; accent-color:var(--amber);" aria-label="MP4 导出进度"></progress>
+          <div id="mp4-export-status" role="status" aria-live="polite" style="font-size:12px; margin:6px 0;"></div>
+          <a id="mp4-export-download" class="dl-link" hidden>下载已生成的 MP4</a>
         </div>
       </div>
     </div>
@@ -424,45 +431,21 @@
       <div class="input-pair">
         <div class="div-input-box">
           <label for="inp-from">起始变动率 (F000–F039)</label>
-          <input type="text" id="inp-from" maxlength="8" value="30.63841" spellcheck="false">
+          <input type="text" id="inp-from" maxlength="8" value="0.571024" spellcheck="false">
         </div>
         <div style="padding-top:18px; color:var(--amber); font-weight:bold; font-size:18px;">→</div>
         <div class="div-input-box">
           <label for="inp-to">目标变动率 (F052–F209)</label>
-          <input type="text" id="inp-to" maxlength="8" value="30.63846" spellcheck="false">
+          <input type="text" id="inp-to" maxlength="8" value="1.048596" spellcheck="false">
         </div>
       </div>
       <div style="font-size:11.5px; color:var(--muted); margin-bottom:10px;">
         支持输入任意 8 位字符：<code>0-9</code> 数字、<code>.</code> 小数点（可放在任意管位）、或空格（表示未点亮空管）。预设状态与官方原片调色 100% 一致。
       </div>
 
-      <h3>原作 6 次世界线变动 + 经典世界线预设</h3>
+      <h3>经典世界线预设</h3>
       <div class="preset-list" id="preset-list">
-        <button class="preset-btn active-preset" data-from="30.63841" data-to="30.63846">
-          <strong>WorldLine01 · 30.63841 → 30.63846</strong>
-          <span class="meta">第2章 2-2:26</span>
-        </button>
-        <button class="preset-btn" data-from="30.63846" data-to="30.63851">
-          <strong>WorldLine02 · 30.63846 → 30.63851</strong>
-          <span class="meta">第3章 3-2:30</span>
-        </button>
-        <button class="preset-btn" data-from="30.63851" data-to="30.63856">
-          <strong>WorldLine03 · 30.63851 → 30.63856</strong>
-          <span class="meta">第5章 5:22</span>
-        </button>
-        <button class="preset-btn" data-from="30.63856" data-to="30.63861">
-          <strong>WorldLine04 · 30.63856 → 30.63861</strong>
-          <span class="meta">第6章 6-2:7</span>
-        </button>
-        <button class="preset-btn" data-from="30.63861" data-to="30.63866">
-          <strong>WorldLine05 · 30.63861 → 30.63866</strong>
-          <span class="meta">第7章 7:21</span>
-        </button>
-        <button class="preset-btn" data-from="30.63866" data-to="30.63841">
-          <strong>WorldLine06 · 30.63866 → 30.63841</strong>
-          <span class="meta">第8章 8:63 (母版原片)</span>
-        </button>
-        <button class="preset-btn" data-from="0.571024" data-to="1.048596">
+        <button class="preset-btn active-preset" data-from="0.571024" data-to="1.048596">
           <strong>Steins Gate · 0.571024 → 1.048596</strong>
           <span class="meta">α → 命运石之门线 (全管自定义演示)</span>
         </button>
@@ -502,7 +485,7 @@
 
       <h3>离线生成任意自定义 H.264+AAC MP4 命令</h3>
       <div class="cli-box" id="cli-cmd">
-        python render_divergence_video.py --from-val "30.63841" --to-val "30.63846" --out "Custom.mp4"
+        python render_divergence_video.py --from-val "0.571024" --to-val "1.048596" --out "Custom.mp4"
       </div>
     </div>
   </div>
@@ -510,7 +493,7 @@
   <!-- Custom MP4 Demo Gallery -->
   <section class="gallery-section">
     <h2>自定义世界线跳变演示（H.264 + 原版 AAC 音轨）</h2>
-    <p class="subtitle">保留两段自定义跳变视频供预览和下载。全部六个剧情预设仍可在上方工作台实时合成，也可使用 Python CLI 在本地生成 MP4。</p>
+    <p class="subtitle">保留两段自定义跳变视频供预览和下载。可在上方工作台修改任意数值并直接导出 MP4，也可使用 Python CLI 在本地生成。</p>
     <div class="video-grid">
       <div class="video-card">
         <div class="video-card-head"><strong>Custom: Steins Gate</strong><span>0.571024 → 1.048596</span></div>
@@ -545,6 +528,8 @@
 <video id="master-video" preload="auto" playsinline style="display:none;"></video>
 <script src="nixie-atlas-data.js"></script>
 <script src="master-video-blob.js"></script>
+<script src="vendor/mediabunny-1.62.1.js"></script>
+<script src="mp4-export.js"></script>
 <script>
 (() => {
   'use strict';
@@ -611,6 +596,7 @@
   const winMaskPixels = new Float32Array(H * W);
   const filamentCanvases = {};
   let assetsReady = false;
+  let exportBusy = false;
 
   // Pre-allocated buffers for fast full-resolution (137x420) separable normalized convolution
   const numBuf = new Float32Array(H * W * 3);
@@ -811,7 +797,7 @@
     return Math.min(TOTAL_FRAMES - 1, Math.max(0, f));
   }
 
-  function renderFrame(frameIdx) {
+  function renderFrame(frameIdx, drawSource) {
     if (!assetsReady) return;
     const startStr = (inpFrom.value + '        ').slice(0, 8);
     const targetStr = (inpTo.value + '        ').slice(0, 8);
@@ -821,7 +807,8 @@
     const flickerAmt = parseFloat(slFlicker.value) || 0.0;
     const diffView = chkDiffView.checked;
 
-    ctx.drawImage(video, 0, 0, 1280, 720);
+    if (drawSource) drawSource(ctx);
+    else ctx.drawImage(video, 0, 0, 1280, 720);
 
     const baseFrameGain = DATA.frameGains[frameIdx] || 1.0;
     const curDigits = [];
@@ -883,7 +870,7 @@
   }
 
   function renderCurrentFrame() {
-    renderFrame(getCurrentFrameIndex());
+    if (!exportBusy && assetsReady && video.readyState >= 2) renderFrame(getCurrentFrameIndex());
   }
 
   function tick() {
@@ -991,6 +978,76 @@
   });
 
   const btnRecord = document.getElementById('btn-record');
+  const btnExport = document.getElementById('btn-export-mp4');
+  const exportPanel = document.getElementById('mp4-export-panel');
+  const exportProgress = document.getElementById('mp4-export-progress');
+  const exportStatus = document.getElementById('mp4-export-status');
+  const exportDownload = document.getElementById('mp4-export-download');
+  let exportController = null;
+  let exportUrl = null;
+
+  btnExport.addEventListener('click', async () => {
+    if (exportController) {
+      exportController.abort();
+      btnExport.disabled = true;
+      exportStatus.textContent = '正在取消导出…';
+      return;
+    }
+    exportPanel.hidden = false;
+    exportDownload.hidden = true;
+    exportProgress.value = 0;
+    if (exportUrl) { URL.revokeObjectURL(exportUrl); exportUrl = null; }
+    if (!assetsReady || video.readyState < 2) {
+      exportStatus.textContent = '素材仍在加载，请稍后重试。';
+      return;
+    }
+    const fromValue = inpFrom.value.trim();
+    const toValue = inpTo.value.trim();
+    // Freeze controls so a single export always uses one consistent set of parameters.
+    const controls = [...document.querySelectorAll('.studio-grid button, .studio-grid input, .studio-grid select')]
+      .filter(control => control !== btnExport)
+      .map(control => [control, control.disabled]);
+    controls.forEach(([control]) => { control.disabled = true; });
+    video.pause();
+    exportBusy = true;
+    exportController = new AbortController();
+    btnExport.textContent = '取消 MP4 导出';
+    exportStatus.textContent = '正在准备 MP4 导出…';
+    try {
+      if (!window.DivergenceMp4Exporter) throw new Error('MP4 组件未加载，请刷新后重试。');
+      const blob = await window.DivergenceMp4Exporter.exportMp4({
+        masterUrl: video.currentSrc || video.src,
+        canvas: stage,
+        frameRate: FPS,
+        totalFrames: TOTAL_FRAMES,
+        renderFrame,
+        signal: exportController.signal,
+        onProgress(frame, total) {
+          exportProgress.value = frame;
+          exportStatus.textContent = frame === total
+            ? '210 帧合成完成，正在封装 MP4…'
+            : `正在生成 MP4：${frame} / ${total} 帧（${Math.floor(frame / total * 100)}%）`;
+        },
+      });
+      exportUrl = URL.createObjectURL(blob);
+      exportDownload.href = exportUrl;
+      exportDownload.download = `WorldLine_${fromValue || 'empty'}_to_${toValue || 'empty'}.mp4`;
+      exportDownload.hidden = false;
+      exportStatus.textContent = `MP4 已生成（${(blob.size / 1048576).toFixed(1)} MB，210 帧，含原片音轨）。如未自动下载，请点击下方链接。`;
+      exportDownload.click();
+    } catch (error) {
+      exportStatus.textContent = error.name === 'AbortError' ? '已取消导出。' : `MP4 导出失败：${error.message}`;
+    } finally {
+      exportController = null;
+      exportBusy = false;
+      controls.forEach(([control, disabled]) => { control.disabled = disabled; });
+      btnExport.disabled = false;
+      btnExport.textContent = '导出 MP4（含原声）';
+      renderCurrentFrame();
+    }
+  });
+  window.addEventListener('beforeunload', () => { if (exportUrl) URL.revokeObjectURL(exportUrl); });
+
   let recorder = null;
   btnRecord.addEventListener('click', () => {
     if (recorder && recorder.state === 'recording') {
@@ -1002,16 +1059,21 @@
     recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
     recorder.onstop = () => {
-      btnRecord.textContent = '⏺ 录制当前自定义 WebM 视频';
+      btnRecord.textContent = '⏺ 录制 WebM';
+      btnExport.disabled = false;
+      stream.getTracks().forEach(track => track.stop());
       const blob = new Blob(chunks, { type: 'video/webm' });
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
+      a.href = url;
       a.download = `WorldLine_${inpFrom.value.trim()}_to_${inpTo.value.trim()}.webm`;
       a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     };
     chkLoop.checked = false;
     video.currentTime = 0;
     recorder.start();
+    btnExport.disabled = true;
     btnRecord.textContent = '⏹ 正在录制... (播完自动保存)';
     video.play();
     video.addEventListener('ended', function stopRec() {

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-STEINS;GATE XR — Native CG Nixie Tube Layer Extractor & Arbitrary Divergence Video Compositor (v4)
+STEINS;GATE AR — Native CG Nixie Tube Layer Extractor & Arbitrary Divergence Video Compositor (v4)
 ===================================================================================================
 - 100% Formula-Safe Window (y_rel = 51..290, y = 221..460): Zero overlap with top formulas (Delta/Sigma <= y=216)
   or bottom Einstein field equations (R_uv >= y=476). Zero formula residue in extracted sprites.
@@ -556,7 +556,7 @@ def export_sprites_and_web_bundle(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Render custom Steins;Gate XR WorldLine transition MP4 (v4).")
+    parser = argparse.ArgumentParser(description="Render custom Steins;Gate AR WorldLine transition MP4 (v4).")
     parser.add_argument("--from-val", dest="from_val", help="8-char starting divergence (e.g. 30.63841)")
     parser.add_argument("--to-val", dest="to_val", help="8-char target divergence (e.g. 30.63846)")
     parser.add_argument("--out", help="Output MP4 file path")
