@@ -67,7 +67,8 @@ steins-gate-divergence-studio/
 - **在线使用**：访问 [GitHub Pages 工作台](https://fluphus.github.io/steins-gate-divergence-studio/)，无需安装。站点从 `main` 分支根目录自动部署。
 - **支持功能**：
   - 实时输入任意 8 位起始值与目标值，保留 Steins Gate（`0.571024 → 1.048596`）和 Alpha Leap（`1.130426 → 0.571024`）两个经典预设；
-  - 210 帧逐帧检视（`F000`–`F209`）、关键帧书签跳转、单管实时状态指示条；
+  - 内置 **6 种可选锁定序列模式**（`canonical` 720p 母版错位锁定、`canonical_last8` 720p 错位·8号管末位终锁、`trailer_1080p` 1080p 宣传片错位锁定、`left2right` 从左至右依次锁定、`right2left` 从右至左依次锁定、`simultaneous` 全管于 F095 同时锁死），锁定顺序与小数点管位完全解耦，且各管在锁定前均保持连续高速滚动；
+  - 210 帧逐帧检视（`F000`–`F209`）、随锁定模式自动更新的关键帧书签跳转、单管实时状态指示条；
   - 导出当前帧无损 `1280×720` PNG、逐帧导出自定义 MP4，或实时录制 WebM 视频。
 
 **直接导出 MP4**：调整起止数值、辉光、光晕、闪烁和锁定模式，点击「导出 MP4（含原声）」。浏览器逐帧合成全部 210 帧，以 H.264 编码为 `1280×720`、`30000/1001 fps` 的视频，并复用母版 AAC 音轨。导出有进度显示，可取消；完成后自动下载，也可点击结果链接重新下载。静音开关仅影响预览，MP4 始终包含原片音轨。
@@ -93,7 +94,10 @@ python render_divergence_video.py --batch-all
 # 示例 1：从 α 世界线 0.571024 跳变至命运石之门世界线 1.048596
 python render_divergence_video.py --from-val "0.571024" --to-val "1.048596" --out "videos/Custom-SteinsGate-1.048596.mp4"
 
-# 示例 2：生成小说剧情微跳变 30.63841 -> 30.63846
+# 示例 2：指定 1080p 宣传片锁定顺序（或 canonical_last8 / left2right / right2left / simultaneous）
+python render_divergence_video.py --from-val "0.571024" --to-val "1.048596" --lock-mode "trailer_1080p" --out "videos/Custom-SteinsGate-1080pOrder.mp4"
+
+# 示例 3：生成小说剧情微跳变 30.63841 -> 30.63846
 python render_divergence_video.py --from-val "30.63841" --to-val "30.63846" --out "videos/WorldLine01.mp4"
 ```
 

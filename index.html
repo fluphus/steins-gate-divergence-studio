@@ -391,15 +391,16 @@
           <button id="btn-restart">⏮ 重播</button>
         </div>
 
-        <div class="Bookmark-row">
+        <div class="Bookmark-row" id="bookmark-row">
           <button data-jump="0">F000 初态静止</button>
           <button data-jump="31">F031 物理公式浮现</button>
           <button data-jump="40">F040 全管高速起跳</button>
           <button data-jump="52">F052 4号管锁死</button>
           <button data-jump="67">F067 5号管锁死</button>
           <button data-jump="77">F077 8号管锁死</button>
-          <button data-jump="80">F080 1/2号管锁死</button>
-          <button data-jump="87">F087 6号管锁死(剩7号单滚)</button>
+          <button data-jump="78">F078 3号管锁死</button>
+          <button data-jump="80">F080 1号管锁死</button>
+          <button data-jump="86">F086 6号管锁死</button>
           <button data-jump="95">F095 7号管终锁完成</button>
           <button data-jump="150">F150 公式消散终态</button>
         </div>
@@ -475,10 +476,12 @@
         <div class="slider-item">
           <span class="lbl">锁定序列模式</span>
           <select id="sel-lock-mode" style="flex:1; background:#0c0908; color:var(--text); border:1px solid var(--border); padding:4px 6px; border-radius:4px;">
-            <option value="canonical">原片错位锁定 (F052→67→77→78→80→87→95)</option>
-            <option value="left2right">从左至右依次锁定 (F050..F095)</option>
-            <option value="right2left">从右至左依次锁定 (F050..F095)</option>
-            <option value="simultaneous">全管于 F095 同时锁死</option>
+            <option value="canonical">720p 母版错位锁定 (4→5→8→2/3→1→6→7号管终锁)</option>
+            <option value="canonical_last8">720p 错位·8号管末位终锁 (4→5→7→2/3→1→6→8号管)</option>
+            <option value="trailer_1080p">1080p 宣传片错位锁定 (4→2/3→7→5→6→1→8号管终锁)</option>
+            <option value="left2right">从左至右依次锁定 (1→8号管 · F052..F095)</option>
+            <option value="right2left">从右至左依次锁定 (8→1号管 · F052..F095)</option>
+            <option value="simultaneous">全管于 F095 同时锁死 (1–8号管齐锁)</option>
           </select>
         </div>
       </div>
@@ -673,12 +676,21 @@
     renderCurrentFrame();
   });
 
+  // Exact frame in official-site-opening.mp4 (30.63866 -> 30.63841) where each tube stops rolling:
+  const ORIG_LOCK_FRAMES = DATA.origLockFrames || [80, 78, 40, 52, 67, 86, 95, 77];
+  const ROLL_OFFSETS = DATA.rollOffsets || [1, 5, 2, 1, 0, 5, 3, 1];
+  const LOCK_MODES = DATA.lockModes || {
+    canonical: [80, 78, 78, 52, 67, 86, 95, 77],
+    canonical_last8: [80, 78, 78, 52, 67, 86, 77, 95],
+    trailer_1080p: [86, 67, 67, 52, 78, 80, 77, 95],
+    left2right: [52, 58, 64, 70, 76, 82, 88, 95],
+    right2left: [95, 88, 82, 76, 70, 64, 58, 52],
+    simultaneous: [95, 95, 95, 95, 95, 95, 95, 95],
+  };
+
   function getLockFrames() {
     const mode = selLockMode.value;
-    if (mode === 'left2right') return [52, 58, 64, 70, 76, 82, 88, 95];
-    if (mode === 'right2left') return [95, 88, 82, 76, 70, 64, 58, 52];
-    if (mode === 'simultaneous') return [95, 95, 95, 95, 95, 95, 95, 95];
-    return DATA.lockFrames;
+    return LOCK_MODES[mode] || LOCK_MODES.canonical;
   }
 
   function normalizeChar(ch) {
@@ -695,8 +707,16 @@
     if (frameIdx >= lockF) return eCh;
     if (sCh === '.' && eCh === '.') return '.';
     if (sCh === 'empty' && eCh === 'empty') return 'empty';
-    const origCh = DATA.origDigits[frameIdx][tubeIdx];
-    return origCh === '.' ? String((frameIdx + 2) % 10) : origCh;
+    let dRoll;
+    if (frameIdx < ORIG_LOCK_FRAMES[tubeIdx] && DATA.origDigits[frameIdx][tubeIdx] !== '.') {
+      dRoll = DATA.origDigits[frameIdx][tubeIdx];
+    } else {
+      dRoll = String((frameIdx + ROLL_OFFSETS[tubeIdx]) % 10);
+    }
+    if (frameIdx === lockF - 1 && dRoll === eCh && dRoll >= '0' && dRoll <= '9') {
+      dRoll = String((parseInt(dRoll, 10) + 9) % 10);
+    }
+    return dRoll;
   }
 
   // Exact full-resolution (137x420) normalized-convolution tube compositor matching Python v4 CLI
@@ -848,22 +868,29 @@
 
       const cell = tubeCells[t];
       const lockF = lockFrames[t];
-      const isRolling = frameIdx >= 40 && frameIdx < lockF && !(startStr[t] === '.' && targetStr[t] === '.');
-      const isLocked = frameIdx >= lockF;
+      const sCh = normalizeChar(startStr[t]);
+      const eCh = normalizeChar(targetStr[t]);
+      const isStaticFixed = (sCh === '.' && eCh === '.') || (sCh === 'empty' && eCh === 'empty');
+      const isRolling = !isStaticFixed && frameIdx >= 40 && frameIdx < lockF;
+      const isLocked = !isStaticFixed && frameIdx >= lockF;
       cell.className = 'tube-cell' + (isRolling ? ' rolling' : (isLocked ? ' locked' : '')) + (dNew !== dOld ? ' modified' : '');
       cell.children[1].textContent = dNew === 'empty' ? '␣' : dNew;
-      cell.children[2].textContent = frameIdx < 40
-        ? '初态静止'
-        : (isRolling ? `跳变中 (锁@F${String(lockF).padStart(3, '0')})` : `已锁 @F${String(lockF).padStart(3, '0')}`);
+      cell.children[2].textContent = isStaticFixed
+        ? (sCh === '.' ? '小数点常亮' : '空管常灭')
+        : (frameIdx < 40
+          ? `初态 (锁@F${String(lockF).padStart(3, '0')})`
+          : (isRolling ? `跳变中 (锁@F${String(lockF).padStart(3, '0')})` : `已锁 @F${String(lockF).padStart(3, '0')}`));
     }
 
     slider.value = frameIdx;
     const sec = (frameIdx / FPS).toFixed(2);
+    const minLock = Math.min(...lockFrames);
+    const maxLock = Math.max(...lockFrames);
     let phaseText = 'STATIC START (初态静止)';
     if (frameIdx >= 31 && frameIdx < 40) phaseText = 'FORMULA REVEAL (公式浮现)';
-    else if (frameIdx >= 40 && frameIdx < 52) phaseText = 'ALL TUBES ROLLING (全管同步起跳)';
-    else if (frameIdx >= 52 && frameIdx < 95) phaseText = 'STAGGERED LOCKING (错位依次锁定)';
-    else if (frameIdx >= 95) phaseText = 'FINAL LOCKED (世界线变动率确定)';
+    else if (frameIdx >= 40 && frameIdx < minLock) phaseText = 'ALL TUBES ROLLING (全管同步起跳)';
+    else if (frameIdx >= minLock && frameIdx < maxLock) phaseText = 'STAGGERED LOCKING (错位依次锁定)';
+    else if (frameIdx >= maxLock) phaseText = 'FINAL LOCKED (世界线变动率确定)';
 
     hudLeft.textContent = `FRAME ${String(frameIdx).padStart(3, '0')} / 209 (${sec}s) · ${phaseText}`;
     hudRight.textContent = `${startStr.trim()} → ${targetStr.trim()} [当前: ${curDigits.join('')}]`;
@@ -920,27 +947,69 @@
     video.currentTime = (f + 0.1) / FPS;
   });
 
-  document.querySelectorAll('[data-jump]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      video.pause();
-      const f = parseInt(btn.getAttribute('data-jump'), 10) || 0;
-      video.currentTime = (f + 0.1) / FPS;
+  const bookmarkRow = document.getElementById('bookmark-row');
+  function updateBookmarks() {
+    const lockFrames = getLockFrames();
+    const startStr = (inpFrom.value + '        ').slice(0, 8);
+    const targetStr = (inpTo.value + '        ').slice(0, 8);
+    const byFrame = new Map();
+    lockFrames.forEach((f, idx) => {
+      const sCh = normalizeChar(startStr[idx]);
+      const eCh = normalizeChar(targetStr[idx]);
+      const isStaticFixed = (sCh === '.' && eCh === '.') || (sCh === 'empty' && eCh === 'empty');
+      if (isStaticFixed) return;
+      if (!byFrame.has(f)) byFrame.set(f, []);
+      byFrame.get(f).push(idx + 1);
     });
-  });
+    const sortedFrames = [...byFrame.keys()].sort((a, b) => a - b);
+    const items = [
+      { f: 0, label: 'F000 初态静止' },
+      { f: 31, label: 'F031 物理公式浮现' },
+      { f: 40, label: 'F040 全管高速起跳' },
+    ];
+    sortedFrames.forEach((f, idx) => {
+      const tubes = byFrame.get(f);
+      const fStr = `F${String(f).padStart(3, '0')}`;
+      const isLast = idx === sortedFrames.length - 1;
+      if (tubes.length >= 7 && sortedFrames.length === 1) {
+        items.push({ f, label: `${fStr} 全管齐锁完成` });
+      } else {
+        const tubeStr = tubes.join('/') + '号管';
+        items.push({ f, label: `${fStr} ${tubeStr}${isLast ? '终锁完成' : '锁死'}` });
+      }
+    });
+    items.push({ f: 150, label: 'F150 公式消散终态' });
+
+    bookmarkRow.innerHTML = '';
+    items.forEach(({ f, label }) => {
+      const btn = document.createElement('button');
+      btn.setAttribute('data-jump', String(f));
+      btn.textContent = label;
+      btn.addEventListener('click', () => {
+        video.pause();
+        video.currentTime = (f + 0.1) / FPS;
+      });
+      bookmarkRow.appendChild(btn);
+    });
+  }
 
   chkMute.addEventListener('change', () => {
     video.muted = chkMute.checked;
   });
 
   chkDiffView.addEventListener('change', renderCurrentFrame);
-  selLockMode.addEventListener('change', renderCurrentFrame);
 
   function updateCliCommand() {
     const s = (inpFrom.value + '        ').slice(0, 8);
     const e = (inpTo.value + '        ').slice(0, 8);
-    cliCmd.textContent = `python render_divergence_video.py --from-val "${s}" --to-val "${e}" --out "Custom_${e.trim()}.mp4"`;
+    const mode = selLockMode.value;
+    const modeArg = mode !== 'canonical' ? ` --lock-mode "${mode}"` : '';
+    cliCmd.textContent = `python render_divergence_video.py --from-val "${s}" --to-val "${e}"${modeArg} --out "Custom_${e.trim()}.mp4"`;
+    updateBookmarks();
     renderCurrentFrame();
   }
+  selLockMode.addEventListener('change', updateCliCommand);
+  updateBookmarks();
   inpFrom.addEventListener('input', updateCliCommand);
   inpTo.addEventListener('input', updateCliCommand);
 

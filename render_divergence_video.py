@@ -45,8 +45,21 @@ TUBE_H = TUBE_Y2 - TUBE_Y1  # 420px
 WIN_Y1 = 50   # y = 220
 WIN_Y2 = 291  # y = 461
 
-# Canonical staggered lock frame for each tube (index 0..7) from official-site-opening.mp4:
-LOCK_FRAMES = [80, 78, 60, 52, 67, 87, 95, 77]
+# Exact frame in official-site-opening.mp4 (30.63866 -> 30.63841) where each tube stops rolling:
+# (Tube 3 / index 2 is '.' in the master video so its master rolling window ends at 40)
+ORIG_LOCK_FRAMES = [80, 78, 40, 52, 67, 86, 95, 77]
+ROLL_OFFSETS = [1, 5, 2, 1, 0, 5, 3, 1]
+
+# Selectable 8-tube lock schedules (independent of decimal point position, synced to the 7 master lock beats):
+LOCK_MODES = {
+    "canonical": [80, 78, 78, 52, 67, 86, 95, 77],       # 720p 母版错位锁定 (4→5→8→2/3→1→6→7号管终锁)
+    "canonical_last8": [80, 78, 78, 52, 67, 86, 77, 95], # 720p 错位·8号管末位终锁 (4→5→7→2/3→1→6→8号管终锁)
+    "trailer_1080p": [86, 67, 67, 52, 78, 80, 77, 95],   # 1080p 宣传片错位锁定 (4→2/3→7→5→6→1→8号管终锁)
+    "left2right": [52, 58, 64, 70, 76, 82, 88, 95],      # 从左至右依次锁定 (1→8号管)
+    "right2left": [95, 88, 82, 76, 70, 64, 58, 52],      # 从右至左依次锁定 (8→1号管)
+    "simultaneous": [95, 95, 95, 95, 95, 95, 95, 95],    # 全管于 F095 同时锁死
+}
+LOCK_FRAMES = LOCK_MODES["canonical"]
 
 # Calibrated BT.601 -> BT.709 pre-compensation matrix for Windows Media Foundation H.264 (avc1) encoder
 # Ensures encoded MP4 frames decode to the exact same BGR color grading as official-site-opening.mp4.
@@ -213,9 +226,23 @@ def extract_native_sprites_and_schedule(frames: np.ndarray):
     return sprites, win_mask, core_alphas, orig_digits, frame_gains
 
 
-def build_digit_schedule(start_str: str, target_str: str, orig_digits: list) -> list:
-    start_s = (start_str + "        ")[:8].replace(" ", "0")
-    target_s = (target_str + "        ")[:8].replace(" ", "0")
+def normalize_char(ch: str) -> str:
+    if not ch or ch in (" ", "_"):
+        return "empty"
+    if ch == "." or ("0" <= ch <= "9"):
+        return ch
+    return "0"
+
+
+def build_digit_schedule(
+    start_str: str,
+    target_str: str,
+    orig_digits: list,
+    lock_mode: str = "canonical",
+) -> list:
+    start_s = [normalize_char(c) for c in (start_str + "        ")[:8]]
+    target_s = [normalize_char(c) for c in (target_str + "        ")[:8]]
+    lock_frames = LOCK_MODES.get(lock_mode, LOCK_FRAMES)
     n_frames = len(orig_digits)
     schedule = [["" for _ in range(8)] for _ in range(n_frames)]
 
@@ -223,17 +250,23 @@ def build_digit_schedule(start_str: str, target_str: str, orig_digits: list) -> 
         for t in range(8):
             s_ch = start_s[t]
             e_ch = target_s[t]
-            lock_f = LOCK_FRAMES[t]
+            lock_f = lock_frames[t]
             if f < 40:
                 schedule[f][t] = s_ch
             elif f >= lock_f:
                 schedule[f][t] = e_ch
+            elif s_ch == "." and e_ch == ".":
+                schedule[f][t] = "."
+            elif s_ch == "empty" and e_ch == "empty":
+                schedule[f][t] = "empty"
             else:
-                if s_ch == "." and e_ch == ".":
-                    schedule[f][t] = "."
+                if f < ORIG_LOCK_FRAMES[t] and orig_digits[f][t] != ".":
+                    d_roll = orig_digits[f][t]
                 else:
-                    orig_ch = orig_digits[f][t]
-                    schedule[f][t] = str((f + 2) % 10) if orig_ch == "." else orig_ch
+                    d_roll = str((f + ROLL_OFFSETS[t]) % 10)
+                if f == lock_f - 1 and d_roll == e_ch and "0" <= d_roll <= "9":
+                    d_roll = str((int(d_roll) + 9) % 10)
+                schedule[f][t] = d_roll
     return schedule
 
 
@@ -416,8 +449,9 @@ def render_divergence_mp4(
     core_alphas: dict,
     orig_digits: list,
     frame_gains: np.ndarray,
+    lock_mode: str = "canonical",
 ):
-    schedule = build_digit_schedule(start_str, target_str, orig_digits)
+    schedule = build_digit_schedule(start_str, target_str, orig_digits, lock_mode=lock_mode)
     tmp_video = out_mp4.with_suffix(".tmp_video.mp4")
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
 
@@ -521,6 +555,9 @@ def export_sprites_and_web_bundle(
         "winY1": WIN_Y1,
         "winY2": WIN_Y2,
         "lockFrames": LOCK_FRAMES,
+        "origLockFrames": ORIG_LOCK_FRAMES,
+        "rollOffsets": ROLL_OFFSETS,
+        "lockModes": LOCK_MODES,
         "origDigits": ["".join(r) for r in orig_digits],
         "frameGains": [round(float(g), 4) for g in frame_gains],
         "atlasDataUrl": f"data:image/png;base64,{atlas_b64}",
@@ -546,6 +583,9 @@ def export_sprites_and_web_bundle(
         json.dumps(
             {
                 "lockFrames": LOCK_FRAMES,
+                "origLockFrames": ORIG_LOCK_FRAMES,
+                "rollOffsets": ROLL_OFFSETS,
+                "lockModes": LOCK_MODES,
                 "origDigits": ["".join(r) for r in orig_digits],
             },
             indent=2,
@@ -560,6 +600,13 @@ def main():
     parser.add_argument("--from-val", dest="from_val", help="8-char starting divergence (e.g. 30.63841)")
     parser.add_argument("--to-val", dest="to_val", help="8-char target divergence (e.g. 30.63846)")
     parser.add_argument("--out", help="Output MP4 file path")
+    parser.add_argument(
+        "--lock-mode",
+        dest="lock_mode",
+        default="canonical",
+        choices=list(LOCK_MODES.keys()),
+        help="Tube locking sequence mode (default: canonical)",
+    )
     parser.add_argument(
         "--batch-all",
         action="store_true",
@@ -588,7 +635,17 @@ def main():
             out_p = VIDEOS_DIR / fname
             print(f"Rendering {fname} ({s_val} -> {e_val}, {desc})...")
             render_divergence_mp4(
-                s_val, e_val, out_p, frames, fps, sprites, win_mask, core_alphas, orig_digits, frame_gains
+                s_val,
+                e_val,
+                out_p,
+                frames,
+                fps,
+                sprites,
+                win_mask,
+                core_alphas,
+                orig_digits,
+                frame_gains,
+                lock_mode=args.lock_mode,
             )
             print(f"  -> Saved {out_p} ({out_p.stat().st_size:,} bytes)")
 
@@ -598,9 +655,19 @@ def main():
 
     if args.from_val and args.to_val and args.out:
         out_p = Path(args.out).resolve()
-        print(f"Rendering custom video: {args.from_val} -> {args.to_val} => {out_p}")
+        print(f"Rendering custom video ({args.lock_mode}): {args.from_val} -> {args.to_val} => {out_p}")
         render_divergence_mp4(
-            args.from_val, args.to_val, out_p, frames, fps, sprites, win_mask, core_alphas, orig_digits, frame_gains
+            args.from_val,
+            args.to_val,
+            out_p,
+            frames,
+            fps,
+            sprites,
+            win_mask,
+            core_alphas,
+            orig_digits,
+            frame_gains,
+            lock_mode=args.lock_mode,
         )
         print(f"Done! Saved to {out_p}")
 
